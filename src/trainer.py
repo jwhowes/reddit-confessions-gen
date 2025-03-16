@@ -88,6 +88,7 @@ class Trainer:
             if accelerator.is_main_process:
                 print(f"EPOCH {epoch + 1} / {self.train_config.num_epochs}")
 
+            model.train()
             for i, encoding in enumerate(dataloader):
                 opt.zero_grad()
 
