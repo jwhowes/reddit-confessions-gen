@@ -28,7 +28,7 @@ class TrainerConfig(BaseConfig):
 class Trainer:
     @accelerator.main_process_first()
     def __init__(self, config_dir: str):
-        exp_name = os.path.dirname(config_dir)
+        exp_name = os.path.basename(config_dir)
 
         self.exp_dir = os.path.join("experiments", exp_name)
         if not os.path.isdir(self.exp_dir):
@@ -66,7 +66,7 @@ class Trainer:
             )
 
             with open(self.log_path, "a") as f:
-                f.write(f"{self.ckpt},{average_loss},{datetime.now()}")
+                f.write(f"{self.ckpt},{average_loss},{datetime.now()}\n")
 
         self.ckpt += 1
 
@@ -111,8 +111,9 @@ class Trainer:
                 average_loss = total_loss / (i - prev_ckpt + 1)
 
                 if accelerator.is_main_process:
-                    print(f"\t{i} / {len(dataloader)} iters.\tAverage loss: {average_loss:.4f}")
+                    print(f"{i} / {len(dataloader)} iters.\tAverage loss: {average_loss:.4f}")
 
                 self.log(model, average_loss)
 
+                total_loss = 0
                 prev_ckpt = i + 1
