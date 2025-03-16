@@ -26,33 +26,33 @@ class TrainerConfig(BaseConfig):
 
 
 class Trainer:
+    @accelerator.main_process_first()
     def __init__(self, config_dir: str):
         exp_name = os.path.dirname(config_dir)
 
-        with accelerator.main_process_first():
-            self.exp_dir = os.path.join("experiments", exp_name)
-            if not os.path.isdir(self.exp_dir):
-                os.makedirs(self.exp_dir)
+        self.exp_dir = os.path.join("experiments", exp_name)
+        if not os.path.isdir(self.exp_dir):
+            os.makedirs(self.exp_dir)
 
-            self.checkpoints_dir = os.path.join(self.exp_dir, "checkpoints")
-            if not os.path.isdir(self.checkpoints_dir):
-                os.makedirs(self.checkpoints_dir)
+        self.checkpoints_dir = os.path.join(self.exp_dir, "checkpoints")
+        if not os.path.isdir(self.checkpoints_dir):
+            os.makedirs(self.checkpoints_dir)
 
-            self.log_path = os.path.join(self.exp_dir, "log.csv")
-            with open(self.log_path, "w+") as f:
-                f.write("ckpt,average loss,timestamp\n")
+        self.log_path = os.path.join(self.exp_dir, "log.csv")
+        with open(self.log_path, "w+") as f:
+            f.write("ckpt,average loss,timestamp\n")
 
-            self.model_config = TransformerConfig.from_yaml(os.path.join(config_dir, "model.yaml"))
-            with open(os.path.join(self.exp_dir, "model.yaml"), "w+") as f:
-                yaml.dump(self.model_config, f)
+        self.model_config = TransformerConfig.from_yaml(os.path.join(config_dir, "model.yaml"))
+        with open(os.path.join(self.exp_dir, "model.yaml"), "w+") as f:
+            yaml.dump(self.model_config, f)
 
-            self.data_config = RedditConfessionsDatasetConfig.from_yaml(os.path.join(config_dir, "data.yaml"))
-            with open(os.path.join(self.exp_dir, "data.yaml"), "w+") as f:
-                yaml.dump(self.data_config, f)
+        self.data_config = RedditConfessionsDatasetConfig.from_yaml(os.path.join(config_dir, "data.yaml"))
+        with open(os.path.join(self.exp_dir, "data.yaml"), "w+") as f:
+            yaml.dump(self.data_config, f)
 
-            self.train_config = TrainerConfig.from_yaml(os.path.join(config_dir, "train.yaml"))
-            with open(os.path.join(self.exp_dir, "train.yaml"), "w+") as f:
-                yaml.dump(self.train_config, f)
+        self.train_config = TrainerConfig.from_yaml(os.path.join(config_dir, "train.yaml"))
+        with open(os.path.join(self.exp_dir, "train.yaml"), "w+") as f:
+            yaml.dump(self.train_config, f)
 
         self.ckpt = 1
 
