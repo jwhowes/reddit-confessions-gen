@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
 from math import sqrt
 from typing import Optional
 
@@ -5,6 +8,9 @@ import torch.nn.functional as F
 import torch
 from torch import nn, Tensor
 from einops import rearrange
+from transformers import AutoConfig
+
+from ..config import BaseConfig
 
 from .util import RMSNorm, SwiGLU
 
@@ -29,7 +35,7 @@ class Attention(nn.Module):
         return torch.view_as_real(
             torch.view_as_complex(x.unflatten(-1, (-1, 2))) *
             freqs.unsqueeze(0)
-        )
+        ).flatten(-2)
 
     def forward(self, x: Tensor, freqs: Tensor, attention_mask: Optional[Tensor] = None) -> Tensor:
         B, L, _ = x.shape
@@ -44,7 +50,7 @@ class Attention(nn.Module):
         attn = (q @ k.transpose(-2, -1)) / self.scale
 
         if attention_mask is not None:
-            attn = attn + attention_mask.view(B, 1, -1, L)
+            attn = attn + attention_mask.view(1, 1, L, L)
 
         return self.W_o(
             rearrange(
@@ -77,6 +83,18 @@ class TransformerBlock(nn.Module):
         return x + self.ffn(x)
 
 
+@dataclass
+class TransformerConfig(BaseConfig):
+    d_model: int
+    n_heads: int
+    n_layers: int
+
+    tokenizer_path: str = "google-bert/bert-base-uncased"
+    max_length: int = 512
+    attn_dropout: float = 0.0
+    ffn_dropout: float = 0.0
+
+
 class Transformer(nn.Module):
     def __init__(
             self, d_model: int, n_heads: int, n_layers: int, vocab_size: int, max_length: int,
@@ -86,7 +104,8 @@ class Transformer(nn.Module):
     ):
         super(Transformer, self).__init__()
         assert d_model % 2 == 0
-        self.d_model = d_model
+        assert d_model % n_heads == 0
+        self.d_attention = d_model // n_heads
 
         self._set_buffers(max_length)
 
@@ -105,7 +124,7 @@ class Transformer(nn.Module):
     def _set_buffers(self, max_length: int):
         self.max_length = max_length
 
-        freqs = 1.0 / (1e5 ** (2 * torch.arange(self.d_model // 2) / self.d_model))
+        freqs = 1.0 / (1e5 ** (2 * torch.arange(self.d_attention // 2) / self.d_attention))
         t = torch.arange(self.max_length)
         freqs = torch.outer(t, freqs)
 
@@ -132,3 +151,18 @@ class Transformer(nn.Module):
             x = layer(x, self.freqs[:L], self.attention_mask[:L, :L])
 
         return self.head(x)
+
+    @staticmethod
+    def from_config(config: TransformerConfig) -> Transformer:
+        tokenizer_config = AutoConfig.from_pretrained(config.tokenizer_path)
+
+        return Transformer(
+            d_model=config.d_model,
+            n_heads=config.n_heads,
+            n_layers=config.n_layers,
+            vocab_size=tokenizer_config.vocab_size,
+            max_length=config.max_length,
+            attn_dropout=config.attn_dropout,
+            ffn_dropout=config.ffn_dropout,
+            padding_token=tokenizer_config.pad_token_id
+        )

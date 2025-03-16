@@ -29,5 +29,5 @@ class SwiGLU(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         return self.out(
-            F.silu(self.gat(x)) * self.hidden(x)
+            F.silu(self.gate(x)) * self.hidden(x)
         )
